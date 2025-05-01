@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Chemistry Flashcards</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="timer" id="timer">100</div>
+        <label for="timer-start">Set Timer (seconds):</label>
+        <input type="number" id="timer-start" value="100" min="10" max="300">
+        <button id="set-timer">Set Timer</button>
+        <button id="pause">Pause Timer</button>
+        
+        <div class="flashcard-container">
+            <div class="flashcard" id="flashcard">
+                <div class="front" id="flashcard-question"></div>
+                <div class="back" id="flashcard-answer"></div>
+            </div>
+        </div>
+        
+        <button id="prev">Previous</button>
+        <button id="flip">Flip</button>
+        <button id="next">Next</button>
+        <button id="shuffle">Shuffle</button>
+        
+        <input type="text" id="quiz-input" placeholder="Your answer...">
+        <button id="check-answer">Check Answer</button>
+        <p id="feedback"></p>
+    </div>
+<style>
+/* Basic Styling */
+body {
+    background-color: #000B58; /* Darkest blue background */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    color: #FFF4B7; /* Light yellow text color for contrast */
+}
+
+.container {
+    background-color: #003161; /* Slightly lighter blue for container */
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    width: 90%; 
+    max-width: 800px; 
+}
+
+/* Timer Styles */
+.timer {
+    font-size: 4em;
+    margin-bottom: 20px;
+    color: #FFF4B7; 
+}
+
+/* Flashcard Container */
+.flashcard-container {
+    perspective: 1000px;
+    margin: 20px auto; 
+    width: 90%; /* Ensure the container takes full width */
+    background-color: #003161; /* Add a blue background color */
+display: flex; /* Enable flexbox for centering */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+}
+
+/* Flashcard */
+.flashcard {
+    width: 100%;
+    height: 200px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s;
+    cursor: pointer;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.flashcard.flipped {
+    transform: rotateY(180deg);
+}
+
+.flashcard div {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    padding: 20px;
+    font-size: 1.2em;
+    color: #000B58; /* Darkest blue text on cards */
+}
+
+.front {
+    background-color: #FFF4B7; /* Light yellow for the front */
+}
+
+.back {
+    transform: rotateY(180deg);
+    background-color: #006A67; /* Greenish blue for the back */
+}
+
+/* Button Styles */
+button {
+    background-color: #006A67; /* Greenish blue for buttons */
+    color: #FFF4B7;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    margin: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #004F4C; /* Slightly darker greenish-blue on hover */
+}
+
+/* Input and Feedback Styles */
+input[type="text"] {
+    background-color: #FFF4B7; /* Light yellow input background */
+    color: #000B58; /* Dark text in input */
+    padding: 8px;
+    margin: 10px 0;
+    border: 1px solid #003161; /* Slightly lighter blue border */
+    border-radius: 4px;
+    width: 80%; 
+}
+
+#feedback {
+    margin-top: 10px;
+    font-weight: bold;
+	position: relative; /* Allow positioning the feedback text */
+    top: -40px; /* Adjust this value to move the text closer */
+}
+
+/* Adjust spacing for buttons and flashcard */
+.container > * {
+    margin-bottom: 50px; /* Add margin to all direct children of .container */
+}
+
+.container > *:last-child {
+    margin-bottom: 0; /* Remove margin from the last child */
+}
+
+
+</style>
+    
+    <script>
+        const flashcards = [
+            { question: "What is the oxidation state of oxygen in water?", answer: "-2" },
+            { question: "What is the oxidation state of iron in Fe2O3?", answer: "+3" },
+            { question: "What is the general formula of an alkane?", answer: "CnH2n+2" },
+            { question: "What is the IUPAC name of CH3CH2OH?", answer: "Ethanol" },
+            { question: "What is the oxidation state of sulfur in H2SO4?", answer: "+6" },
+            { question: "What is the molecular formula of benzene?", answer: "C6H6" },
+            { question: "What is the functional group in carboxylic acids?", answer: "-COOH" },
+            { question: "What type of reaction occurs when an alkene reacts with hydrogen?", answer: "Hydrogenation" },
+            { question: "What is the oxidation state of chlorine in NaClO3?", answer: "+5" },
+            { question: "What is the IUPAC name of CH3COCH3?", answer: "Propanone" }
+        ];
+        
+        let currentCardIndex = 0;
+        let timer;
+        let countdown = 100;
+        let timerPaused = false;
+        const questionElement = document.getElementById("flashcard-question");
+        const answerElement = document.getElementById("flashcard-answer");
+        const timerElement = document.getElementById("timer");
+
+        function startTimer() {
+            clearInterval(timer);
+            countdown = parseInt(document.getElementById("timer-start").value) || 100;
+            timerElement.textContent = countdown;
+            timer = setInterval(() => {
+                if (!timerPaused && countdown > 0) {
+                    countdown--;
+                    timerElement.textContent = countdown;
+                    if (countdown <= 0) {
+                        clearInterval(timer);
+                        document.getElementById("flashcard").classList.add("flipped");
+                    }
+                }
+            }, 1000);
+        }
+        
+        document.getElementById("set-timer").addEventListener("click", startTimer);
+        document.getElementById("pause").addEventListener("click", () => {
+            timerPaused = !timerPaused;
+        });
+        
+        function loadFlashcard(index) {
+            questionElement.textContent = flashcards[index].question;
+            answerElement.textContent = flashcards[index].answer;
+            document.getElementById("flashcard").classList.remove("flipped");
+        }
+        
+        document.getElementById("flip").addEventListener("click", () => {
+            document.getElementById("flashcard").classList.toggle("flipped");
+        });
+
+        document.getElementById("next").addEventListener("click", () => {
+            currentCardIndex = (currentCardIndex + 1) % flashcards.length;
+            loadFlashcard(currentCardIndex);
+            startTimer();
+        });
+
+        document.getElementById("prev").addEventListener("click", () => {
+            currentCardIndex = (currentCardIndex - 1 + flashcards.length) % flashcards.length;
+            loadFlashcard(currentCardIndex);
+            startTimer();
+        });
+        
+        document.getElementById("shuffle").addEventListener("click", () => {
+            flashcards.sort(() => Math.random() - 0.5);
+            currentCardIndex = 0;
+            loadFlashcard(currentCardIndex);
+            startTimer();
+        });
+
+        document.getElementById("check-answer").addEventListener("click", () => {
+            const userAnswer = document.getElementById("quiz-input").value.trim().toLowerCase();
+            const correctAnswer = flashcards[currentCardIndex].answer.toLowerCase();
+            const feedback = document.getElementById("feedback");
+
+	 if (userAnswer === correctAnswer) {
+                feedback.innerHTML = "<span style='font-size: 1.5em; color: #5CE65C;'>&#x2714; Correct Answer!</span>";
+            } else {
+                feedback.innerHTML = "<span style='font-size: 1.5em; color: red;'>&#x2716; Incorrect, try again.</span>"; 
+            }
+          /*  feedback.textContent = userAnswer === correctAnswer ? "Correct!" : "Incorrect, try again.";
+            feedback.style.color = userAnswer === correctAnswer ? "green" : "red";*/
+        });
+
+        startTimer();
+        loadFlashcard(currentCardIndex);
+    </script>
+</body>
+</html>
