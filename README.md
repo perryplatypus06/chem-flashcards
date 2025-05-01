@@ -1,2 +1,2 @@
 # chem-flashcards
-github profile README
+https://perryplatypus06.github.io/chem-flashcards/
